@@ -1,0 +1,56 @@
+[
+	{
+		"pinNumber": 2,
+		"pinNumber_ref": 1,
+		"naturePin": "INPUT",
+		"control": [ 5 ], 
+		"action": 1,
+		"value": "LOW",
+		"feature": {}
+	},
+	{
+		"pinNumber": 3,
+		"pinNumber_ref": 1,
+		"naturePin": "INPUT",
+		"control": [ 6, 7 ], 
+		"action": 1,
+		"value": "LOW",
+		"feature": {}
+	},
+	{
+		"pinNumber": 5,
+		"pinNumber_ref": 1,
+		"naturePin": "OUTPUT",
+		"control":[], 
+		"action": 1,
+		"value": "LOW",
+		"feature": {}
+	},
+	{
+		"pinNumber": 6,
+		"pinNumber_ref": 1,
+		"naturePin": "OUTPUT",
+		"control": [],
+		"action": 1, 
+		"value": "LOW",
+		"feature": {}
+	},
+	{
+		"pinNumber": 7,
+		"pinNumber_ref": 1,
+		"naturePin": "OUTPUT",
+		"control": [], 
+		"action": 1, 
+		"value": "LOW",
+		"feature": {}
+	},
+	{
+		"pinNumber": "A0",
+		"pinNumber_ref": 1,
+		"naturePin": "sensor",
+		"control": [7], 
+		"action": 2, 
+		"value": "LOW",
+		"feature": {"temperature_low": 15, "temperature_high": 25}
+	}
+]
