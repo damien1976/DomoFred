@@ -1,9 +1,31 @@
+#include <Ethernet.h>
+#include <EthernetUdp.h>
 #include "Arduino.h"
 #include <ArduinoJson.h>
 #include <String.h>
 #include <SPI.h>
 #include <SD.h>
 #include <Eventually.h>
+
+// Enter a MAC address and IP address for your controller below.
+// The IP address will be dependent on your local network:
+byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+IPAddress ip(192, 168, 0, 2);
+unsigned int localPort = 8888;      // local port to listen on
+
+// Remote address and port : 
+IPAddress remIP(192, 168, 0, 1); 
+unsigned int remPort = 8888; 
+
+// buffers for receiving and sending data
+// #include <EthernetUdp.h>   // A tester **************
+#define UDP_TX_PACKET_MAX_SIZE 512 //increase UDP size
+
+char packetBuffer[UDP_TX_PACKET_MAX_SIZE];  // buffer to hold incoming packet,
+char ReplyBuffer[] = "acknowledged";        // a string to send back
+
+// An EthernetUDP instance to let us send and receive packets over UDP
+EthernetUDP Udp;
 
 // since it is difficult to read A0 from file as an int,
 // we use an array of digital pins : 
@@ -68,19 +90,66 @@ bool allumerLed_with_sensor(EvtListener *listener, EvtContext *ctx){
   }
   else{
     digitalWrite(ex->light_pin, LOW);
-  }
+  } 
   return false;
 
 }
 
+// Envoi d'un message à un arduino distant : 
+bool send_message(EvtListener *listener, EvtContext *ctx) {
+  EvtPinListener* pinLst = (EvtPinListener*)listener;
+  ExtraData* ex = pinLst->extraData;
+  
+  Udp.beginPacket(remIP, remPort);
+  //Udp.print("Appui :");
+  //Udp.print((String)ex->pinNumber);
+  //Udp.print("Allumer :");
+  Udp.print((String)ex->light_pin);
+  Udp.endPacket();
+  
+  delay(1000);
+  return false;
+}
+
 EvtAction doActionsArray[] = 
 {
-  allumerLed_fred, // Action 0
+  send_message, // Action 0
   allumerLed_fred, // Action 1
   allumerLed_with_sensor, // Action 2
 };
 
 void setup() {
+  // You can use Ethernet.init(pin) to configure the CS pin
+  //Ethernet.init(10);  // Most Arduino shields
+  //Ethernet.init(5);   // MKR ETH shield
+  //Ethernet.init(0);   // Teensy 2.0
+  //Ethernet.init(20);  // Teensy++ 2.0
+  //Ethernet.init(15);  // ESP8266 with Adafruit Featherwing Ethernet
+  //Ethernet.init(33);  // ESP32 with Adafruit Featherwing Ethernet
+
+  // start the Ethernet
+  Ethernet.begin(mac, ip);
+
+  // Open serial communications and wait for port to open:
+  Serial.begin(9600);
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for native USB port only
+  }
+
+  // Check for Ethernet hardware present
+  if (Ethernet.hardwareStatus() == EthernetNoHardware) {
+    Serial.println("Ethernet shield was not found.  Sorry, can't run without hardware. :(");
+    while (true) {
+      delay(1); // do nothing, no point running without Ethernet hardware
+    }
+  }
+  if (Ethernet.linkStatus() == LinkOFF) {
+    Serial.println("Ethernet cable is not connected.");
+  }
+
+  // start UDP
+  Udp.begin(localPort);
+  
   // Open serial communications and wait for port to open:
   Serial.begin(9600);
   while (!Serial) {
@@ -96,8 +165,9 @@ void setup() {
   Serial.println("initialization done.");
 
   // Return content of the config file :
-  String texte = returnContentFile("config.txt"); 
+  String texte = returnContentFile("CONFIG.txt"); 
   Serial.println(texte);
+  
   // Parser les données json.
   // Premiere façon : 
   //const size_t capacity = 2*JSON_ARRAY_SIZE(1) + JSON_ARRAY_SIZE(2) + 2*JSON_OBJECT_SIZE(0) + 2*JSON_OBJECT_SIZE(7)+162;
@@ -112,181 +182,85 @@ void setup() {
   int idx = 0;
   while (idx < root.size()){
     //JsonObject& root_0 = root[idx];
-    if (strcmp((char*) root[idx]["pinNumber"], "INPUT")==0 && (int) root[idx]["pinNumber"]>0){ // cas des boutons
-      pinMode((int) root[idx]["pinNumber"], INPUT); 
-      Serial.print("BUTTON : ");
-      Serial.print((int) root[idx]["pinNumber"]);
-      Serial.println(" ");
+    if ((int) root[idx]["n"]==1 && (int) root[idx]["p"]>0 && (int)root[idx]["r"]==1){ // cas des boutons
+      pinMode((int) root[idx]["p"], INPUT); 
+      Serial.println((int) root[idx]["p"]);
     }
-    if (strcmp((char*) root[idx]["naturePin"], "OUTPUT")==0 && (int) root[idx]["pinNumber"]>0){ // cas des leds
-      pinMode((int) root[idx]["pinNumber"], OUTPUT); 
-      Serial.print("LED ");
-      Serial.print((int) root[idx]["pinNumber"]);
-      Serial.println(" ");   
+    if ((int) root[idx]["n"]==2 && (int) root[idx]["p"]>0 && (int)root[idx]["r"]==1){ // cas des leds
+      pinMode((int) root[idx]["p"], OUTPUT);   
+      Serial.println((int) root[idx]["p"]);
     }
     ++idx;
   }
+  // Envoi pour la configuration de l'autre arduino-esclave : 
+  // Length (with one extra character for the null terminator)
+  int str_len = texte.length() + 1; 
+  Serial.println("Size : ");
+  Serial.println(str_len);
 
+  // Prepare the character array (the buffer) 
+  char char_array[276];
+  
+  // Copy it over 
+  texte.toCharArray(char_array, 276);
+  Serial.println("Char _ array : ");
+  Serial.println(char_array);
+  Udp.beginPacket(remIP, remPort);
+  Udp.print(char_array);
+  Udp.endPacket();
+  
   mgr.resetContext();
   
   idx = 0;
   while (idx < root.size()){
-    //JsonObject& root_0 = root[idx];
-    if (strcmp((char*) root[idx]["naturePin"], "INPUT")==0 && (int) root[idx]["pinNumber"]>0){ // cas des boutons
-      EvtPinListener* evt = new EvtPinListener((int) root[idx]["pinNumber"], 80, doActionsArray[(int) root[idx]["action"]]); //allumerLed_fred); // doActionsArray[(int) root_0["action"]]);
-      //evt->extraData = (void *)root_0;
+    if ((int) root[idx]["n"]==1 && (int) root[idx]["p"]>0 && (int)root[idx]["r"]==1){ // cas des boutons
+      EvtPinListener* evt = new EvtPinListener((int) root[idx]["p"], 80, doActionsArray[(int) root[idx]["a"]]); //allumerLed_fred); // doActionsArray[(int) root_0["action"]]);
       Serial.println("allumer_fred : ");
-      Serial.print((int) root[idx]["pinNumber"]);
+      Serial.print((int) root[idx]["p"]);
       Serial.print(" avec ");
-      Serial.print((int) root[idx]["control"][0]);
+      Serial.print((int) root[idx]["c"][0]);
       Serial.println(" ");
       ExtraData *ex = new ExtraData();
-      ex->pinNumber = (int) root[idx]["pinNumber"];
+      ex->pinNumber = (int) root[idx]["p"];
       ex->pin_state = HIGH;
-      ex->light_pin = (int) root[idx]["control"][0];
+      ex->light_pin = (int) root[idx]["c"][0];
       evt->extraData = (void *)ex;
       mgr.addListener(evt);  
     }
     
-    if (strcmp((char*) root[idx]["naturePin"], "sensor")==0){ // cas des sensors
+    if ((int)root[idx]["n"]==3 && (int)root[idx]["r"]==1){ // cas des sensors
       EvtTimeListener* evt = new EvtTimeListener(250, true, allumerLed_with_sensor); // En fait : doActionsArray[(int) root_0["action"]);
                                                                                      // mais erreur dans le fichier config.
                                                                                      
       Serial.print("allumer_sensor : ");
-      Serial.print(sensorPins[(int) root[idx]["pinNumber"]]);
+      Serial.print(sensorPins[(int) root[idx]["p"]]);
       Serial.print(" avec ");
-      Serial.print((int) root[idx]["control"][0]);
+      Serial.print((int) root[idx]["c"][0]);
       Serial.println(" ");
       ExtraData *ex = new ExtraData();
-      ex->pinNumber = sensorPins[(int) root[idx]["pinNumber"]];
-      ex->light_pin = (int) root[idx]["control"][0];
-      ex->temp_min = (float) root[idx]["feature"]["temperature_low"];
-      ex->temp_max = (float) root[idx]["feature"]["temperature_high"];
+      ex->pinNumber = sensorPins[(int) root[idx]["p"]];
+      ex->light_pin = (int) root[idx]["c"][0];
+      ex->temp_min = (float) root[idx]["f"]["tl"];
+      ex->temp_max = (float) root[idx]["f"]["th"];
       evt->extraData = (void *)ex;
       mgr.addListener(evt);  
     }
     ++idx;
   }
-  
-/*
-  while((idx+inputPinStart) != inputPinEnd ){
-    EvtPinListener* evt = new EvtPinListener(idx+inputPinStart, 100, allumerLed_fred);
-    ExtraData *ex = new ExtraData();
-    ex->pinNumber = idx+inputPinStart;
-    ex->pin_state = LOW;
-    ex->light_pin = idx+outputPinStart;
-    evt->extraData = (void *)ex;
-    mgr.addListener(evt);
-    ++idx;
-
-  }
-  */
-
-  
-  // essai : commander plusieurs leds à partir d'un seul bouton = fonctionne.
-  /*
-  if ((idx+inputPinStart) == 2){ // ajout de la diode rouge numéro 8 au bouton 2
-    // a modifier : voir pour une liste chaînée.
-    EvtPinListener* evt = new EvtPinListener(idx+inputPinStart, 100, allumerLed_fred);
-    ExtraData *ex = new ExtraData();
-    ex->pinNumber = 2;
-    ex->pin_state = LOW;
-    ex->light_pin = 7;
-    evt->extraData = (void *)ex;
-    mgr.addListener(evt);
-  }
-  */
-/*
-  // Allumer led with sensor
-  EvtTimeListener* evt = new EvtTimeListener(250, true, allumerLed_with_sensor);
-  ExtraData *ex = new ExtraData();
-  ex->pinNumber = sensorPin;
-  ex->light_pin = 7;
-  evt->extraData = (void *)ex;
-  mgr.addListener(evt);
-*/
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
-    //Serial.println((char*) root_0["pinNumber"]);
-    //Serial.println((char*) root_0["naturePin"]);
-    //for (int i =0; i<root_0["control"].size(); i++){
-    //  Serial.println((int) root_0["control"][i]);
-    //}
-    //Serial.println((int)root_0.measureLength());
-    //Serial.println((int) root_0["feature"].size());
-    //if (root_0["feature"].size() !=0){
-    //   Serial.println((char*)root_0["feature"]["temperature_low"]);
-    //   Serial.println((char*)root_0["feature"]["temperature_high"]);
-
-  /*
-  JsonObject& root_0 = root[0];
-  int root_0_pinNumber = root_0["pinNumber"]; // 2
-  int root_0_pinNumber_ref = root_0["pinNumber_ref"]; // 1
-  const char* root_0_naturePin = root_0["naturePin"]; // "INPUT"
-  
-  int root_0_control_0 = root_0["control"][0]; // 5
-  
-  int root_0_action = root_0["action"]; // 1
-  const char* root_0_value = root_0["value"]; // "LOW"
-  
-  JsonObject& root_1 = root[1];
-  int root_1_pinNumber = root_1["pinNumber"]; // 3
-  int root_1_pinNumber_ref = root_1["pinNumber_ref"]; // 1
-  const char* root_1_naturePin = root_1["naturePin"]; // "INPUT"
-  
-  int root_1_control_0 = root_1["control"][0]; // 6
-  
-  int root_1_action = root_1["action"]; // 1
-  const char* root_1_value = root_1["value"]; // "LOW"
-
-  Serial.println("******************");
-  Serial.println(root_1_naturePin);
- */
 
 void loop() {
   mgr.loopIteration();
   delay(150);
-  /*
-  int idx = 0;
-  while (idx < root.size()){
-    JsonObject& root_0 = root[idx];
-    if (strcmp((char*)root_0["naturePin"], "INPUT")){ // pour chaque bouton, ...
-      int state = digitalRead(root_0["pinNumber"]); // on lit son état
-      if (digitalRead(root_0["pinNumber"]) == HIGH){ // si son état est HIGH ...
-        for (int i =0; i<root_0["control"].size(); i++){ // pour chaque led qu'il contrôle ...
-          int state = digitalRead((int) root_0["control"][i]);
-          digitalWrite((int) root_0["control"][i], !state);// on inverse son état. 
-          }
-      }
-    }
-    idx++;
+
+  // if there's data available, read a packet
+  int packetSize = Udp.parsePacket();
+  if (packetSize) {
+    // read the packet into packetBufffer
+    Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
+    digitalWrite(atoi(packetBuffer), !digitalRead(atoi(packetBuffer)));
   }
-  */
+  delay(200);
 }
 
 /*
@@ -309,7 +283,7 @@ void createFile(char* filename){
     myFile.close();
   } else {
     // if the file didn't open, print an error:
-    Serial.println("error opening test.txt");
+    Serial.println("error opening file");
   }
 }
 
