@@ -165,7 +165,7 @@ void setup() {
   Serial.println("initialization done.");
 
   // Return content of the config file :
-  String texte = returnContentFile("CONFIG.txt"); 
+  String texte = returnContentFile("CONFIG.txt"); //"config1.txt"); 
   Serial.println(texte);
   
   // Parser les données json.
@@ -179,6 +179,21 @@ void setup() {
   //JsonArray& root = jsonBuffer.createArray(); // serializing (inutile dans un premier temps)
   
   // Déclaration INPUT - OUTPUT
+  /*
+  int idx = 0;
+  while (idx < root.size()){
+    //JsonObject& root_0 = root[idx];
+    if (strcmp((char*) root[idx]["naturePin"], "INPUT")==0 && (int) root[idx]["pinNumber"]>0 && (int)root[idx]["pinNumber_ref"]==1){ // cas des boutons
+      pinMode((int) root[idx]["pinNumber"], INPUT); 
+      Serial.println((int) root[idx]["pinNumber"]);
+    }
+    if (strcmp((char*) root[idx]["naturePin"], "OUTPUT")==0 && (int) root[idx]["pinNumber"]>0 && (int)root[idx]["pinNumber_ref"]==1){ // cas des leds
+      pinMode((int) root[idx]["pinNumber"], OUTPUT);   
+      Serial.println((int) root[idx]["pinNumber"]);
+    }
+    ++idx;
+  }
+  */
   int idx = 0;
   while (idx < root.size()){
     //JsonObject& root_0 = root[idx];
@@ -213,8 +228,10 @@ void setup() {
   
   idx = 0;
   while (idx < root.size()){
+    //JsonObject& root_0 = root[idx];
     if ((int) root[idx]["n"]==1 && (int) root[idx]["p"]>0 && (int)root[idx]["r"]==1){ // cas des boutons
       EvtPinListener* evt = new EvtPinListener((int) root[idx]["p"], 80, doActionsArray[(int) root[idx]["a"]]); //allumerLed_fred); // doActionsArray[(int) root_0["action"]]);
+      //evt->extraData = (void *)root_0;
       Serial.println("allumer_fred : ");
       Serial.print((int) root[idx]["p"]);
       Serial.print(" avec ");
@@ -247,6 +264,9 @@ void setup() {
     }
     ++idx;
   }
+
+  // Essai : à supprimer par la suite
+  //pinMode(8, OUTPUT);
 }
 
 void loop() {

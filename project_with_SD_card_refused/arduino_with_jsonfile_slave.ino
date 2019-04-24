@@ -135,40 +135,87 @@ void setup() {
   // On lit les données recues : 
   StaticJsonBuffer<4096> jsonBuffer;
   JsonArray& root = jsonBuffer.parseArray(packetBuffer);
-
+  /*
+  // Déclaration INPUT - OUTPUT
   // Walk the JsonArray efficiently
   //for (JsonObject repo : root) { // if C++11 is available
   for (JsonArray::iterator it=root.begin(); it!=root.end(); ++it) { // When C++11 is not available
     JsonObject& repo = *it;
-    if (repo["n"].as<int>()==1 && repo["p"].as<int>()>0 && repo["r"].as<int>()==2){ // cas des boutons
-      pinMode(atoi(repo["p"].as<int>()), INPUT); 
+    if (strcmp((char*) repo["naturePin"], "INPUT")==0 && (int) repo["pinNumber"]>0 && (int)repo["pinNumber_ref"]==2){ // cas des boutons
+      pinMode((int) repo["pinNumber"], INPUT); 
     }
-    if (repo["n"].as<int>() == 2 && repo["p"].as<int>()>0 && repo["r"].as<int>()==2){ // cas des leds
-      pinMode(atoi(repo["p"].as<int>()), OUTPUT);   
+    if (strcmp((char*) repo["naturePin"], "OUTPUT")==0 && (int) repo["pinNumber"]>0 && (int)repo["pinNumber_ref"]==2){ // cas des leds
+      pinMode((int) repo["pinNumber"], OUTPUT); 
     }
-    if ((int)repo["r"]==2){ // cas des INPUT/OUTPUT sur l'arduino-esclave 
+  }
+  */
+  int idx = 0;
+  while (idx < root.size()){
+    //JsonObject& root_0 = root[idx];
+    if (atoi(root[idx]["n"])==1 && atoi(root[idx]["p"])>0 && atoi(root[idx]["r"])==2){ // cas des boutons
+      pinMode(atoi(root[idx]["p"]), INPUT); 
+    }
+    if (atoi(root[idx]["n"]) == 2 && atoi(root[idx]["p"])>0 && atoi(root[idx]["r"])==2){ // cas des leds
+      pinMode(atoi(root[idx]["p"]), OUTPUT);   
+    }
+    if ((int)root[idx]["r"]==2){ // cas des INPUT/OUTPUT sur l'arduino-esclave 
       Serial.println("Pin number : ");
-      Serial.print(repo["p"].as<int>());
+      Serial.print((int) root[idx]["p"]);
       Serial.print(" avec ");
-      Serial.print(repo["c"][0].as<int>());
+      Serial.print((int) root[idx]["c"][0]);
       Serial.println(" *** ");
     }
+    ++idx;
   }
 
   mgr.resetContext();
 
-  for (JsonArray::iterator it=root.begin(); it!=root.end(); ++it) { // When C++11 is not available
-    JsonObject& repo = *it;
-    if (repo["n"].as<int>() == 1 && repo["p"].as<int>()>0 && repo["r"].as<int>()==2){ // cas des boutons
-      EvtPinListener* evt = new EvtPinListener(repo["p"].as<int>(), 80, doActionsArray[repo["a"].as<int>()]); 
+  idx = 0;
+  while (idx < root.size()){
+    //JsonObject& root_0 = root[idx];
+    if (atoi(root[idx]["n"]) == 1 && atoi(root[idx]["p"])>0 && atoi(root[idx]["r"])==2){ 
+      // cas des boutons
+      EvtPinListener* evt = new EvtPinListener(atoi(root[idx]["p"]), 80, doActionsArray[atoi(root[idx]["a"])]); 
       ExtraData *ex = new ExtraData();
-      ex->pinNumber = repo["p"].as<int>();
+      ex->pinNumber = atoi(root[idx]["p"]);
       ex->pin_state = HIGH;
-      ex->light_pin = repo["c"][0].as<int>();
+      ex->light_pin = atoi(root[idx]["c"][0]);
       evt->extraData = (void *)ex;
       mgr.addListener(evt);  
     }
   }
+  
+  /*
+  //for (JsonObject repo : root) { // if C++11 is available
+  for (JsonArray::iterator it=root.begin(); it!=root.end(); ++it) { // When C++11 is not available
+    JsonObject& repo = *it;
+
+    if (strcmp((char*) repo["naturePin"], "INPUT")==0 && (int) repo["pinNumber"]>0 && (int)repo["pinNumber_ref"]==2){
+      // cas des boutons
+      EvtPinListener* evt = new EvtPinListener((int) repo["pinNumber"], 80, doActionsArray[(int) repo["action"]]);
+      ExtraData *ex = new ExtraData();
+      ex->pinNumber = (int) repo["pinNumber"];
+      ex->pin_state = HIGH;
+      ex->light_pin = (int) repo["control"][0];
+      Serial.println("Numero : ");
+      Serial.println((char*) repo["pinNumber"]);
+      Serial.println("Action : ");
+      Serial.println((int) repo["control"][0]);
+      evt->extraData = (void *)ex;
+      mgr.addListener(evt);  
+    }  
+  }
+  */
+  
+/*
+  // A l'appui du bouton, on envoie un message à l'arduino master :
+  EvtPinListener* evt = new EvtPinListener(button, 80, send_message); 
+  ExtraData *ex = new ExtraData();
+  //ex->pinNumber = button;
+  ex->light_pin = light_pin;
+  evt->extraData = (void *)ex;
+  mgr.addListener(evt); 
+  */
 }
 
 void loop() {
