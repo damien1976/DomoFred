@@ -1,6 +1,6 @@
 Neue Fassung ohne SD card und mit EEPROM.
 Die Idee ist : 
-Schalter Nummer 2 (repo["p"]==2) auf dem Arduino Nummer 1 (repo["r"]==1) ist ein Schalter (repo["n"]==1) und befiehl LED Nummer 5 (repo["c"] == 5)  auf dem Arduino 1 (repo["d"]==1) und die Funktion Nummer 1 (repo["a"]==1) wird eingesetzt.
+Schalter Nummer 2 (repo["p"]==2) auf dem Arduino Nummer 1 (repo["r"]==1) ist ein Input (repo["n"]==1) und befiehl LED Nummer 5 (repo["c"] == 5)  auf dem Arduino 1 (repo["d"]==1) und die Funktion Nummer 1 (repo["a"]==1) wird eingesetzt.
 
   "p"  |  "r"  |  "n"  |  "c"  |  "a"  |  "d"  |
 ================================================
@@ -8,7 +8,7 @@ Schalter Nummer 2 (repo["p"]==2) auf dem Arduino Nummer 1 (repo["r"]==1) ist ein
 ------------------------------------------------
     5  |    1  |   2   |       |       |       |            ====>>> LED 5
 ------------------------------------------------
- nächste ....
+ die anderen ....
 ------------------------------------------------
 
 "p" == 2, 3 , 4 , ....  : Pin
